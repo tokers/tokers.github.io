@@ -121,3 +121,21 @@ window.onload = ready;
 </footer>
 </body>
 </html>
+
+
+<div id="git-comments"></div>
+<link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+<script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script>
+  var gitment = new Gitment({
+    id: '',  
+    owner: 'tokers',
+    repo: 'comments-of-my-blog',
+    oauth: {
+      client_id: '3776dbfa00cb350d0820',
+      client_secret: '0927748e810e6ee8a976c618f3fb51dd287d575a',
+    }
+  })
+  gitment.render('git-comments')
+</script>
+
