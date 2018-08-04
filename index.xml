@@ -6,9 +6,24 @@
     <description>Recent content on This is Alex Zhang</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
+    <lastBuildDate>Sat, 04 Aug 2018 15:52:20 +0800</lastBuildDate>
     
         <atom:link href="https://tokers.github.io/index.html/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>About Me</title>
+      <link>https://tokers.github.io/index.html/about/</link>
+      <pubDate>Sat, 04 Aug 2018 15:52:20 +0800</pubDate>
+      
+      <guid>https://tokers.github.io/index.html/about/</guid>
+      <description>&lt;p&gt;Hello, I am Chao Zhang (aka Alex Zhang), I am a System Development Engineer of UPYUN Inc. My Email is &lt;a href=&#34;mailto:zchao1995@gmail.com&#34;&gt;zchao1995@gmail.com&lt;/a&gt; and the github ID is &lt;a href=&#34;https://github.com/tokers&#34;&gt;tokers&lt;/a&gt; (Why &amp;ldquo;tokers&amp;rdquo;? Because &amp;ldquo;Alex&amp;rdquo; is a mutex).&lt;/p&gt;
+
+&lt;p&gt;I am the contributor of the ngx_lua project. In addition, I devote to learn Nginx, Redis, OpenSSL and other projects.&lt;/p&gt;
+
+&lt;p&gt;This site is being used as my tech blog, interesting things will be archived (in Chinese, sure :)).&lt;/p&gt;
+</description>
+    </item>
     
   </channel>
 </rss>
