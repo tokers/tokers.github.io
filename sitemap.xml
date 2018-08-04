@@ -3,17 +3,17 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>https://tokers.github.io/categories/</loc>
+    <loc>https://tokers.github.io/index.html/categories/</loc>
     <priority>0</priority>
   </url>
   
   <url>
-    <loc>https://tokers.github.io/tags/</loc>
+    <loc>https://tokers.github.io/index.html/tags/</loc>
     <priority>0</priority>
   </url>
   
   <url>
-    <loc>https://tokers.github.io/</loc>
+    <loc>https://tokers.github.io/index.html/</loc>
     <priority>0</priority>
   </url>
   
