@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>ngx_lua 问题归档（1）</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="ngx_lua 问题归档（1）">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="ngx_lua 问题归档（1）">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://tokers.github.io/posts/ngx-lua-drawback-record-1/">
+	<meta name="og:site_name" content="ngx_lua 问题归档（1）">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:tag" content="">
+	<link rel="stylesheet" type="text/css" href="https://tokers.github.io/css/style.css">
+	
+	
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-123-45', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+	
+	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+	<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+
+<body>
+
+<header>
+	
+	<a href="https://tokers.github.io/" style="float: left;color:#777;"><strong>This is Alex Zhang</strong></a>
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://tokers.github.io/about/" style="color:#777;"><strong>About Me</strong></a>
+	
+	
+	
+	<a href="https://tokers.github.io/index.xml" style="color:#777;float: right;"><strong><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></strong></a>
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+      el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+  <h1>ngx_lua 问题归档（1） <aside></aside></h1>
+  <p>前段时间在公司引流机器上偶然发现我们的 OpenResty/Nginx 服务存在进程崩溃的情况，错误日志里记录了如下的堆栈：</p>
+
+<pre><code>ngx_http_lua_ssl_cert_handler
+tls_post_process_client_hello+0x1be)
+ossl_statem_server_post_process_message
+read_state_machine
+state_machine
+ossl_statem_accept
+ssl3_read_bytes
+ssl3_read_internal
+ssl3_read
+ssl_read_internal
+SSL_read
+ngx_ssl_recv
+ngx_http_v2_read_handler
+ngx_http_v2_idle_handler
+ngx_epoll_process_events
+ngx_process_events_and_timers
+ngx_worker_process_cycle
+ngx_spawn_process
+ngx_start_worker_processes
+ngx_master_process_cycle
+main
+</code></pre>
+
+<p>（在崩溃时打印其堆栈的功能是我们自己加入到 Nginx 中的，官方版本并不支持。）</p>
+
+<p>从堆栈信息来看，当前正在处理的连接，HTTP 协议已经升级到了  HTTP/2 （<code>ngx_http_v2_idle_handler</code>）。而从偏顶部的函数来看，当前连接似乎又进入到了 SSL/TLS 握手协议的处理，既然堆栈上出现了 HTTP/2 相关的函数，说明当前一定不是第一次 SSL/TLS 握手（否则 HTTP 协议不可能为 HTTP/2），这让我联想到 <a href="https://devcentral.f5.com/articles/ssl-profiles-part-6-ssl-renegotiation">SSL renegotation</a>，由于没有 coredump 文件的支持，从堆栈信息里看出来的仅限于这么多。</p>
+
+<p>问题至此，便只能带着问题去看源码了。既然问题还和 HTTP/2 有关，那么我猜测问题可能出现在某些地方没有兼容好 HTTP/2 相关逻辑有关，经过查看 <code>ngx_http_lua_ssl_cert_handler</code> 函数（这是实现 <code>ssl_certificate_by_lua</code> 功能的基础函数）和 HTTP/2 相关的逻辑，我发现问题出在 <code>c-&gt;data</code> 这个成员上，在协议升级到 HTTP/2 后，函数 <code>ngx_htp_v2_init</code>会被调用到，这个函数将 <code>c-&gt;data</code> 赋值为了 <code>ngx_http_v2_connection_t</code> 的一个实例，而在通常（非 HTTP/2） 的处理下，<code>c-&gt;data</code> 则是 <code>ngx_http_connection_t</code> 的实例，<code>ngx_http_lua_ssl_cert_handler</code>并没有区分这一情况，导致将实际按 <code>ngx_http_v2_connection_t</code> 布局的数据按 <code>ngx_http_connection_t</code>的结构来操作，从而引发了 segmentation fault。</p>
+
+<pre><code class="language-c">void
+ngx_http_v2_init(ngx_event_t *rev)
+{
+    ......
+      
+    c-&gt;data = h2c; /* 赋值为 ngx_http_v2_connection_t 实例 */
+
+    rev-&gt;handler = ngx_http_v2_read_handler;
+    c-&gt;write-&gt;handler = ngx_http_v2_write_handler;
+
+    c-&gt;idle = 1;
+
+    ngx_http_v2_read_handler(rev);
+}
+</code></pre>
+
+<pre><code class="language-c">int
+ngx_http_lua_ssl_cert_handler(ngx_ssl_conn_t *ssl_conn, void *data)
+{
+    ......
+    
+    hc = c-&gt;data; /* 此时应该是 h2c (ngx_http_v2_connection_t) = c-&gt;data */
+  
+    ......
+      
+    r-&gt;main_conf = hc-&gt;conf_ctx-&gt;main_conf; /* 可能导致 segmentation fault */
+    r-&gt;srv_conf = hc-&gt;conf_ctx-&gt;srv_conf;   /* 可能导致 segmentation fault */
+    r-&gt;loc_conf = hc-&gt;conf_ctx-&gt;loc_conf;   /* 可能导致 segmentation fault */
+    
+  ......
+}
+    
+</code></pre>
+
+<p>原因似乎找到了，我尝试通过 openssl s_client 这个工具来复现问题，但是没有成功：</p>
+
+<pre><code>echo R | openssl s_client -connect ip:port -alpn h2
+</code></pre>
+
+<p>（这里键入 &ldquo;R&rdquo; 是为了触发 SSL renegotation。）</p>
+
+<p>我想可能遗漏了一些重要细节，通过 gdb 单步跟踪，我发现在执行到 <code>ngx_http_lua_ssl_cert_handler</code> 时，并没有执行到上述逻辑，而是走到了以下的逻辑：</p>
+
+<pre><code class="language-c">int
+ngx_http_lua_ssl_cert_handler(ngx_ssl_conn_t *ssl_conn, void *data)
+{
+    .......
+
+    if (cctx &amp;&amp; cctx-&gt;entered_cert_handler) {
+        /* not the first time */
+
+        if (cctx-&gt;done) {
+            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c-&gt;log, 0,
+                           &quot;lua_certificate_by_lua: cert cb exit code: %d&quot;,
+                           cctx-&gt;exit_code);
+
+            dd(&quot;lua ssl cert done, finally&quot;);
+            return cctx-&gt;exit_code;
+        }
+
+        return -1;
+    }
+  
+     .......
+}
+</code></pre>
+
+<p>因为早在第一次 SSL/TLS 握手时，<code>cctx-&gt;entered_cert_handler</code>就已经置为 1。所以第二次重新协商时，并没有处理我们期望的逻辑。</p>
+
+<p>反过来说，要出现这个问题，那么第一次 SSL/TLS 握手一定不能走到 <code>ngx_http_lua_ssl_cert_handler</code> 的逻辑，这个函数实际设置在 OpenSSL 内部的 <code>s-&gt;cert-&gt;cert_cb</code> 上，如果要该函数不被调用，说明第一次握手服务端没有发送证书链到客户端，即触发了SSL Session Reuse 机制。</p>
+
+<p>幸运的是，这仍然可以通过 openssl s_client 来验证猜测：</p>
+
+<pre><code>echo R | openssl s_client -connect ip:port -reconnect -alpn h2
+</code></pre>
+
+<p>执行后观察错误日志，发现进程果然崩溃，问题已经成功定位到！</p>
+
+<p>我已经将问题反馈到了 OpenResty 官方并提交了 <a href="https://github.com/openresty/lua-nginx-module/pull/1355">PR</a> 进行修复。值得注意的是，Nginx/1.15.2 已经彻底避免了这个问题，见 <a href="http://hg.nginx.org/nginx/rev/dcab86115261">dcab86115261</a>；另外，如果 OpenSSL 版本低于 1.1.0，也不会有这个问题。</p>
+
+</div>
+
+
+
+
+<footer>
+	<p>© 2017-2018, all rights reserved.</a>
+</footer>
+</body>
+</html>
+
+
+<div id="git-comments"></div>
+<link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+<script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script>
+  var gitment = new Gitment({
+    id: 'ngx-lua-drawback-record-1',
+    owner: 'tokers',
+    repo: 'comments-of-my-blog',
+    oauth: {
+      client_id: '3776dbfa00cb350d0820',
+      client_secret: '0927748e810e6ee8a976c618f3fb51dd287d575a',
+    }
+  })
+  gitment.render('git-comments')
+</script>
+
