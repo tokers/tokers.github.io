@@ -13,10 +13,10 @@
     
     <item>
       <title>About Me</title>
-      <link>https://tokers.github.io/about-page/</link>
+      <link>https://tokers.github.io/about/</link>
       <pubDate>Sat, 04 Aug 2018 15:52:20 +0800</pubDate>
       
-      <guid>https://tokers.github.io/about-page/</guid>
+      <guid>https://tokers.github.io/about/</guid>
       <description>&lt;p&gt;Hello, I am Chao Zhang (aka Alex Zhang), I am a System Development Engineer of UPYUN Inc. My Email is &lt;a href=&#34;mailto:zchao1995@gmail.com&#34;&gt;zchao1995@gmail.com&lt;/a&gt; and the github ID is &lt;a href=&#34;https://github.com/tokers&#34;&gt;tokers&lt;/a&gt; (Why &amp;ldquo;tokers&amp;rdquo;? Because the name &amp;ldquo;Alex&amp;rdquo; in github is a &amp;ldquo;critical resource&amp;rdquo;).&lt;/p&gt;
 
 &lt;p&gt;I am the contributor of the ngx_lua project. In addition, I devote to learn Nginx, Redis, OpenSSL and other projects.&lt;/p&gt;
