@@ -6,10 +6,42 @@
     <description>Recent content on This is Alex Zhang</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 05 Aug 2018 15:47:45 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 19 Aug 2018 16:43:18 +0800</lastBuildDate>
     
         <atom:link href="https://tokers.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>哈夫曼编码在 HTTP/2 协议中的应用</title>
+      <link>https://tokers.github.io/posts/huffman_in_hpack/</link>
+      <pubDate>Sun, 19 Aug 2018 16:43:18 +0800</pubDate>
+      
+      <guid>https://tokers.github.io/posts/huffman_in_hpack/</guid>
+      <description>&lt;p&gt;今天笔者想要简单讨论下哈夫曼编码在 HTTP/2 协议中的相关应用。本文不对 HTTP/2 协议内容进行展开，如果不曾了解过 HTTP/2 协议的话，请自行查阅相关文档。&lt;/p&gt;
+
+&lt;p&gt;HPACK 是 HTTP/2 协议里用于头部压缩的一种技术，它又包括索引和编码两部分，其中索引是将 HTTP 头部替换为索引下标，编码则是将头部名、头部值进行哈夫曼编码，从而达到压缩头部大小，节省网络带宽和对端解析时的 CPU 消耗。&lt;/p&gt;
+
+&lt;p&gt;哈夫曼编码依赖于哈夫曼树。哈夫曼树利用了字符集中每个字符的不同权重，“贪心”得构造出的一颗 01 二叉树，其中权重小的字符所在节点离树的根节点更远（其编码相对较长），权重大的字符所在的节点里树更节点更近（其编码相对较短）。关于哈夫曼树，更多的请查阅&lt;a href=&#34;https://en.wikipedia.org/wiki/Huffman_coding&#34;&gt;维基百科&lt;/a&gt;。&lt;/p&gt;
+
+&lt;p&gt;HTTP/2 协议提供了 0-255 每个字符对应的哈夫曼编码（以及一个用于填充的字符，即 EOS，编码为 &lt;code&gt;0x3fffffff&lt;/code&gt;），这是通过分析大量 HTTP 头部的样本得到的。所有的 HTTP/2 协议实现都要按照这张表对 HTTP 头部进行编解码。&lt;/p&gt;
+
+&lt;p&gt;如果了解了哈夫曼树的原理，那么再利用这张表构造出对应的哈夫曼树显得非常简单，解码时只需要在树上进行搜索即可，然而直接搜索的话，每次行进长度只有 1 个比特位，寻找一个编码长度为 N 的字符，时间复杂度是 O(N)。这并不是最优的方案，事实上，我们可以看到在 Nginx 和 nghttp2 的实现里，哈夫曼解码处理每次都是行进 4 个比特位，即寻找一个编码长度为 N 的字符，时间复杂度降到了 O(N / 4)，并且整棵哈夫曼树也被保存成一张表。&lt;/p&gt;
+
+&lt;p&gt;每次行进 4 个比特位，实际上是将哈夫曼树扩展成为了一颗 16 叉树，因为每个节点都至多会有 16 个子节点。至于为什么是选择 4 个比特位而不是其他的，我想是因为考虑到编码时的便利性，因为刚好 4 个比特位是半个字节，我们可以通过简单的位运算得出 4 个比特位对应的值。然而此时问题也比之前更加复杂了一些，每次走 4 个比特位，我们需要记录下&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;根据某一种走法走完 4 个比特位时，是否走到了非法的节点上（比如走到了 EOS 节点，或者途中某个节点不存在通往下个节点的路径）；&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;走完这 4 个比特位时，是否经过了某个编码的字符（在哈夫曼树上则对应到叶子节点）；&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;当所有头部的解码结束时，是否停留在一个“合法的节点”上，所谓合法的节点，指的是在这个节点上刚好完成一次解码操作，或者当前的路径（从根节点到当前节点），刚好是 EOS 的前缀；&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;不满足这些条件时，说明解码已经出错，对端没有按照协议标准对头部进行压缩。&lt;/p&gt;
+
+&lt;p&gt;基于这些前提和条件，我用 Lua 语言写了一个生成哈夫曼解码表的&lt;a href=&#34;https://github.com/tokers/lua-resty-http2/blob/master/util/mkhuffdectbl&#34;&gt;程序&lt;/a&gt;，这为我实现 lua-resty-http2 奠定了基础，该部分参考了 Nginx 和 nghttp2。&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>ngx_lua 问题归档（1）</title>
