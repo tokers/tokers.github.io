@@ -168,11 +168,20 @@ ngx_http_lua_ssl_cert_handler(ngx_ssl_conn_t *ssl_conn, void *data)
       <pubDate>Sat, 04 Aug 2018 15:52:20 +0800</pubDate>
       
       <guid>https://tokers.github.io/about/</guid>
-      <description>&lt;p&gt;Hello, I am Chao Zhang (aka Alex Zhang), I am a System Development Engineer of UPYUN Inc. My Email is &lt;a href=&#34;mailto:zchao1995@gmail.com&#34;&gt;zchao1995@gmail.com&lt;/a&gt; and the github ID is &lt;a href=&#34;https://github.com/tokers&#34;&gt;tokers&lt;/a&gt; (Why &amp;ldquo;tokers&amp;rdquo;? Because the name &amp;ldquo;Alex&amp;rdquo; in github is a &amp;ldquo;critical resource&amp;rdquo;).&lt;/p&gt;
+      <description>
 
-&lt;p&gt;I am the contributor of the ngx_lua project. In addition, I devote to learn Nginx, Redis, OpenSSL and other projects.&lt;/p&gt;
+&lt;h1 id=&#34;hello-world&#34;&gt;Hello World&lt;/h1&gt;
 
-&lt;p&gt;This site is being used as my tech blog, interesting things will be archived (in Chinese, sure :)).&lt;/p&gt;
+&lt;p&gt;Hello, I am Chao Zhang (aka Alex Zhang), I&amp;rsquo;m a System Development Engineer at UPYUN Inc. My Email is &lt;a href=&#34;mailto:zchao1995@gmail.com&#34;&gt;zchao1995@gmail.com&lt;/a&gt; and the github ID is &lt;a href=&#34;https://github.com/tokers&#34;&gt;tokers&lt;/a&gt;. Why &amp;ldquo;tokers&amp;rdquo;? Because the name &amp;ldquo;Alex&amp;rdquo; in github is a &amp;ldquo;critical resource&amp;rdquo;, and &amp;ldquo;tokers&amp;rdquo; is the nick name since I was in college and played the &lt;a href=&#34;https://icpc.baylor.edu/&#34;&gt;ACM/ICPC&lt;/a&gt; competitions.&lt;/p&gt;
+
+&lt;p&gt;Currently I&amp;rsquo;m concentrating with CDN (Content Delivery Network), involves so
+many technologies, like &lt;a href=&#34;https://www.nginx.com/&#34;&gt;Nginx&lt;/a&gt;, &lt;a href=&#34;https://openresty.org/en/&#34;&gt;OpenResty&lt;/a&gt;, &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt;, &lt;a href=&#34;https://golang.org/&#34;&gt;Golang&lt;/a&gt; and so forth.&lt;/p&gt;
+
+&lt;p&gt;I&amp;rsquo;m OpenResty contributor. Moreover, I&amp;rsquo;m passionate with those techs.&lt;/p&gt;
+
+&lt;p&gt;This site is being used as my tech blog, interesting things will be archived.&lt;/p&gt;
+
+&lt;h1 id=&#34;my-own-projects&#34;&gt;My Own Projects&lt;/h1&gt;
 </description>
     </item>
     
