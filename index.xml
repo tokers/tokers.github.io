@@ -182,6 +182,51 @@ many technologies, like &lt;a href=&#34;https://www.nginx.com/&#34;&gt;Nginx&lt;
 &lt;p&gt;This site is being used as my tech blog, interesting things will be archived.&lt;/p&gt;
 
 &lt;h1 id=&#34;my-own-projects&#34;&gt;My Own Projects&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/tokers/zstd-nginx-module&#34;&gt;zstd-nginx-module&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These Nginx C modules are used for taking the power of &lt;a href=&#34;https://facebook.github.io/zstd/&#34;&gt;ZStandard&lt;/a&gt; to Nginx.&lt;/p&gt;
+
+&lt;p&gt;There are two modules here, one is &amp;ldquo;static&amp;rdquo;, for serving the existing .zstd
+file on the disk. And the other one, is used to compress data with the sreaming
+way.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/tokers/lua-io-nginx-module&#34;&gt;lua-io-nginx-module&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This Nginx C module provides the basic file operations APIs with a mechanism that never block Nginx&amp;rsquo;s event loop. For now, it leverages Nginx&amp;rsquo;s thread pool, I/O operations might be offloaded to one of the free threads, and current Lua coroutine (Light Thread) will be yield until the I/O operations is done, in the meantime, Nginx in turn processes other events.&lt;/p&gt;
+
+&lt;p&gt;It&amp;rsquo;s worth to mention that the cost time of a single I/O operation won&amp;rsquo;t be reduced, it was just transferred from the main thread (the one executes the event loop) to another exclusive thread. Indeed, the overhead might be a little higher, because of the extra tasks transferring, lock waiting, Lua coroutine resumption (and can only be resumed in the next event loop) and so forth. Nevertheless, after the offloading, the main thread doesn&amp;rsquo;t block due to the I/O operation, and this is the fundamental advantage compared with the native Lua I/O library.&lt;/p&gt;
+
+&lt;p&gt;The APIs are similar with the Lua I/O library, but with the totally different internal implementations, it doesn&amp;rsquo;t use the stream file facilities in libc (but keep trying to be consistent with it), the buffer is maintained inside this module, and follows Cosocket&amp;rsquo;s internals.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/tokers/lua-resty-requests&#34;&gt;lua-resty-requests&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Yet Another HTTP library for OpenResty! This HTTP library is for human beings, just like Python Request, APIs are trivil but wonderful.&lt;/p&gt;
+
+&lt;p&gt;It provides many features:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;HTTP/1.0, HTTP/1.1 and HTTP/2 (WIP).&lt;/li&gt;
+&lt;li&gt;SSL/TLS support.&lt;/li&gt;
+&lt;li&gt;Chunked data support.&lt;/li&gt;
+&lt;li&gt;Convenient interfaces to support features like json, authorization and etc.&lt;/li&gt;
+&lt;li&gt;Stream interfaces to read request body.&lt;/li&gt;
+&lt;li&gt;HTTP/HTTPS proxy.&lt;/li&gt;
+&lt;li&gt;Latency metrics.&lt;/li&gt;
+&lt;li&gt;Session support.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I&amp;rsquo;m still working on this project and will improve it continuously.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Hmmm, I will replenish this list in the future. :)&lt;/li&gt;
+&lt;/ul&gt;
 </description>
     </item>
     

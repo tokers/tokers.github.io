@@ -120,6 +120,51 @@ many technologies, like <a href="https://www.nginx.com/">Nginx</a>, <a href="htt
 
 <h1 id="my-own-projects">My Own Projects</h1>
 
+<ul>
+<li><a href="https://github.com/tokers/zstd-nginx-module">zstd-nginx-module</a>.</li>
+</ul>
+
+<p>These Nginx C modules are used for taking the power of <a href="https://facebook.github.io/zstd/">ZStandard</a> to Nginx.</p>
+
+<p>There are two modules here, one is &ldquo;static&rdquo;, for serving the existing .zstd
+file on the disk. And the other one, is used to compress data with the sreaming
+way.</p>
+
+<ul>
+<li><a href="https://github.com/tokers/lua-io-nginx-module">lua-io-nginx-module</a></li>
+</ul>
+
+<p>This Nginx C module provides the basic file operations APIs with a mechanism that never block Nginx&rsquo;s event loop. For now, it leverages Nginx&rsquo;s thread pool, I/O operations might be offloaded to one of the free threads, and current Lua coroutine (Light Thread) will be yield until the I/O operations is done, in the meantime, Nginx in turn processes other events.</p>
+
+<p>It&rsquo;s worth to mention that the cost time of a single I/O operation won&rsquo;t be reduced, it was just transferred from the main thread (the one executes the event loop) to another exclusive thread. Indeed, the overhead might be a little higher, because of the extra tasks transferring, lock waiting, Lua coroutine resumption (and can only be resumed in the next event loop) and so forth. Nevertheless, after the offloading, the main thread doesn&rsquo;t block due to the I/O operation, and this is the fundamental advantage compared with the native Lua I/O library.</p>
+
+<p>The APIs are similar with the Lua I/O library, but with the totally different internal implementations, it doesn&rsquo;t use the stream file facilities in libc (but keep trying to be consistent with it), the buffer is maintained inside this module, and follows Cosocket&rsquo;s internals.</p>
+
+<ul>
+<li><a href="https://github.com/tokers/lua-resty-requests">lua-resty-requests</a></li>
+</ul>
+
+<p>Yet Another HTTP library for OpenResty! This HTTP library is for human beings, just like Python Request, APIs are trivil but wonderful.</p>
+
+<p>It provides many features:</p>
+
+<ul>
+<li>HTTP/1.0, HTTP/1.1 and HTTP/2 (WIP).</li>
+<li>SSL/TLS support.</li>
+<li>Chunked data support.</li>
+<li>Convenient interfaces to support features like json, authorization and etc.</li>
+<li>Stream interfaces to read request body.</li>
+<li>HTTP/HTTPS proxy.</li>
+<li>Latency metrics.</li>
+<li>Session support.</li>
+</ul>
+
+<p>I&rsquo;m still working on this project and will improve it continuously.</p>
+
+<ul>
+<li>Hmmm, I will replenish this list in the future. :)</li>
+</ul>
+
 </div>
 
 
