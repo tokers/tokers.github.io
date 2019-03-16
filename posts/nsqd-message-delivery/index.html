@@ -4,20 +4,20 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	
-	<title></title>
+	<title>How is the message delivered in NSQD?</title>
 	
 	<meta name="description" content="">
 	<meta name="image" content="">
 	
-	<meta itemprop="name" content="">
+	<meta itemprop="name" content="How is the message delivered in NSQD?">
 	<meta itemprop="description" content="">
 	<meta itemprop="image" content="">
 	
-	<meta name="og:title" content="">
+	<meta name="og:title" content="How is the message delivered in NSQD?">
 	<meta name="og:description" content="">
 	
 	<meta name="og:url" content="https://tokers.github.io/posts/nsqd-message-delivery/">
-	<meta name="og:site_name" content="">
+	<meta name="og:site_name" content="How is the message delivered in NSQD?">
 	<meta name="og:type" content="article">
 	
 	<meta name="article:tag" content="">
@@ -104,17 +104,8 @@ window.onload = ready;
 </script>
 
 <div class="content">
-  <h1> <aside></aside></h1>
-  <p>&mdash; yaml
-title: How is the message delivered in NSQD?
-date: 2019-03-16T14:55:46+08:00
-slug: nsqd-message-delivery</p>
-
-<p>gitment: true</p>
-
-<hr />
-
-<p>NSQ is a well-known Message Queue System, and one of the most important component, NSQD, takes charge of the message delivery. It accepts the message from outer publishers passively, stashs them either in memory (a fixed-size Golang Channel), or persisting it in the disk. In the meanwhile, it waits consumers&rsquo; arrival, pushes messages to these consumers as far as possible (tied with consumers&rsquo; <code>RDY</code> state).</p>
+  <h1>How is the message delivered in NSQD? <aside></aside></h1>
+  <p>NSQ is a well-known Message Queue System, and one of the most important component, NSQD, takes charge of the message delivery. It accepts the message from outer publishers passively, stashs them either in memory (a fixed-size Golang Channel), or persisting it in the disk. In the meanwhile, it waits consumers&rsquo; arrival, pushes messages to these consumers as far as possible (tied with consumers&rsquo; <code>RDY</code> state).</p>
 
 <p>This post introduces the &ldquo;footprint&rdquo; of a message when it was published from a publisher to an NSQD instance, until it was eaten by some consumers, whose channels are different.</p>
 
@@ -135,4 +126,20 @@ slug: nsqd-message-delivery</p>
 </body>
 </html>
 
+
+<div id="git-comments"></div>
+<link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+<script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script>
+  var gitment = new Gitment({
+    id: 'nsqd-message-delivery',
+    owner: 'tokers',
+    repo: 'comments-of-my-blog',
+    oauth: {
+      client_id: '3776dbfa00cb350d0820',
+      client_secret: '0927748e810e6ee8a976c618f3fb51dd287d575a',
+    }
+  })
+  gitment.render('git-comments')
+</script>
 

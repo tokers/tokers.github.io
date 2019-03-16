@@ -18,12 +18,12 @@
   </url>
   
   <url>
-    <loc>https://tokers.github.io/posts/nsqd-message-delivery/</loc>
+    <loc>https://tokers.github.io/categories/</loc>
+    <priority>0</priority>
   </url>
   
   <url>
-    <loc>https://tokers.github.io/categories/</loc>
-    <priority>0</priority>
+    <loc>https://tokers.github.io/posts/nsqd-message-delivery/</loc>
   </url>
   
   <url>
