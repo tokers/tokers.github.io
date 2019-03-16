@@ -162,5 +162,32 @@ ngx_http_lua_ssl_cert_handler(ngx_ssl_conn_t *ssl_conn, void *data)
 </description>
     </item>
     
+    <item>
+      <title></title>
+      <link>https://tokers.github.io/posts/nsqd-message-delivery/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://tokers.github.io/posts/nsqd-message-delivery/</guid>
+      <description>&lt;p&gt;&amp;mdash; yaml
+title: How is the message delivered in NSQD?
+date: 2019-03-16T14:55:46+08:00
+slug: nsqd-message-delivery&lt;/p&gt;
+
+&lt;p&gt;gitment: true&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;NSQ is a well-known Message Queue System, and one of the most important component, NSQD, takes charge of the message delivery. It accepts the message from outer publishers passively, stashs them either in memory (a fixed-size Golang Channel), or persisting it in the disk. In the meanwhile, it waits consumers&amp;rsquo; arrival, pushes messages to these consumers as far as possible (tied with consumers&amp;rsquo; &lt;code&gt;RDY&lt;/code&gt; state).&lt;/p&gt;
+
+&lt;p&gt;This post introduces the &amp;ldquo;footprint&amp;rdquo; of a message when it was published from a publisher to an NSQD instance, until it was eaten by some consumers, whose channels are different.&lt;/p&gt;
+
+&lt;p&gt;Publishers can publish messages either through NSQD&amp;rsquo;s HTTP Restful APIs (&lt;code&gt;/pub&lt;/code&gt;, &lt;code&gt;/mpub&lt;/code&gt;), or over the TCP connection with NSQD&amp;rsquo;s client protocol (&lt;code&gt;PUB&lt;/code&gt;, &lt;code&gt;MPUB&lt;/code&gt; and &lt;code&gt;DPUB&lt;/code&gt; commands). Whatever way you chose, after you received the normal response, your message had been saved (but not so safe). In the publishers&amp;rsquo; side, messages are always tied with topic. Messages are always passed to &lt;strong&gt;topic&amp;rsquo;s&lt;/strong&gt; &lt;code&gt;gochan&lt;/code&gt; (or the disk queue if the memory channel is full) firstly, then they will be propagated to every channel, same put strategy is applied, actually each topic has such an exclusive goroutine to do this job (which is called &lt;code&gt;messagePump&lt;/code&gt; in NSQD&amp;rsquo;s code base), it receives messages from the memory &lt;code&gt;gochan&lt;/code&gt; or the backend &lt;code&gt;gochan&lt;/code&gt; (supported by the disk queue facility), and iterates each channel, deliveries each message to them.&lt;/p&gt;
+
+&lt;p&gt;Consumers, however, is associated with the channel (not the Golang&amp;rsquo;s one). It subscribes a channel explicitly through the TCP protocol command &lt;code&gt;SUB&lt;/code&gt;. With the constant coordination of &lt;code&gt;RDY&lt;/code&gt; count, NSQD will push messages as far as possible, futhermore, once a message was sent to the client side, it would be saved in an &amp;ldquo;in-flight&amp;rdquo; queue, and there is some goroutines, named as &amp;ldquo;query scan workers&amp;rdquo;, always try to scan each topics&amp;rsquo; each channel, what they search are timed out messages, those passed to client but without an timely &lt;code&gt;FIN&lt;/code&gt; response, all of them would be re-pushed into the memory &lt;code&gt;gochan&lt;/code&gt; or the disk queue. This feature, ensures messages&amp;rsquo; safety in a way, although some risks still exist, like the NSQD instance was killed or the OS crashed, you can set the &lt;code&gt;-mem-queue-size&lt;/code&gt; option to &lt;code&gt;0&lt;/code&gt; to force NSQD puts messages in disk.&lt;/p&gt;
+
+&lt;p&gt;The total process, is really clear and simple, but powerful. Tries to use NSQD under the proper circumstances, it will help you alot!&lt;/p&gt;
+</description>
+    </item>
+    
   </channel>
 </rss>

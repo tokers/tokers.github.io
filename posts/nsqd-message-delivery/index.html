@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title></title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://tokers.github.io/posts/nsqd-message-delivery/">
+	<meta name="og:site_name" content="">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:tag" content="">
+	<link rel="stylesheet" type="text/css" href="https://tokers.github.io/css/style.css">
+	
+	
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-123-45', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+	
+	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+	<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+
+<body>
+
+<header>
+	
+	<a href="https://tokers.github.io/" style="float: left;color:#777;"><strong>This is Alex Zhang</strong></a>
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://tokers.github.io/about/" style="color:#777;"><strong>About Me</strong></a>
+	
+	
+	
+	<a href="https://tokers.github.io/index.xml" style="color:#777;float: right;"><strong><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></strong></a>
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+      el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+  <h1> <aside></aside></h1>
+  <p>&mdash; yaml
+title: How is the message delivered in NSQD?
+date: 2019-03-16T14:55:46+08:00
+slug: nsqd-message-delivery</p>
+
+<p>gitment: true</p>
+
+<hr />
+
+<p>NSQ is a well-known Message Queue System, and one of the most important component, NSQD, takes charge of the message delivery. It accepts the message from outer publishers passively, stashs them either in memory (a fixed-size Golang Channel), or persisting it in the disk. In the meanwhile, it waits consumers&rsquo; arrival, pushes messages to these consumers as far as possible (tied with consumers&rsquo; <code>RDY</code> state).</p>
+
+<p>This post introduces the &ldquo;footprint&rdquo; of a message when it was published from a publisher to an NSQD instance, until it was eaten by some consumers, whose channels are different.</p>
+
+<p>Publishers can publish messages either through NSQD&rsquo;s HTTP Restful APIs (<code>/pub</code>, <code>/mpub</code>), or over the TCP connection with NSQD&rsquo;s client protocol (<code>PUB</code>, <code>MPUB</code> and <code>DPUB</code> commands). Whatever way you chose, after you received the normal response, your message had been saved (but not so safe). In the publishers&rsquo; side, messages are always tied with topic. Messages are always passed to <strong>topic&rsquo;s</strong> <code>gochan</code> (or the disk queue if the memory channel is full) firstly, then they will be propagated to every channel, same put strategy is applied, actually each topic has such an exclusive goroutine to do this job (which is called <code>messagePump</code> in NSQD&rsquo;s code base), it receives messages from the memory <code>gochan</code> or the backend <code>gochan</code> (supported by the disk queue facility), and iterates each channel, deliveries each message to them.</p>
+
+<p>Consumers, however, is associated with the channel (not the Golang&rsquo;s one). It subscribes a channel explicitly through the TCP protocol command <code>SUB</code>. With the constant coordination of <code>RDY</code> count, NSQD will push messages as far as possible, futhermore, once a message was sent to the client side, it would be saved in an &ldquo;in-flight&rdquo; queue, and there is some goroutines, named as &ldquo;query scan workers&rdquo;, always try to scan each topics&rsquo; each channel, what they search are timed out messages, those passed to client but without an timely <code>FIN</code> response, all of them would be re-pushed into the memory <code>gochan</code> or the disk queue. This feature, ensures messages&rsquo; safety in a way, although some risks still exist, like the NSQD instance was killed or the OS crashed, you can set the <code>-mem-queue-size</code> option to <code>0</code> to force NSQD puts messages in disk.</p>
+
+<p>The total process, is really clear and simple, but powerful. Tries to use NSQD under the proper circumstances, it will help you alot!</p>
+
+</div>
+
+
+
+
+<footer>
+	<p>© 2017-2018, all rights reserved.</a>
+</footer>
+</body>
+</html>
+
+
