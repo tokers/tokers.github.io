@@ -6,10 +6,112 @@
     <description>Recent content on This is Alex Zhang</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 15 Mar 2019 16:47:45 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 25 Apr 2019 16:43:18 +0800</lastBuildDate>
     
         <atom:link href="https://tokers.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>The Internal of Redis Transaction</title>
+      <link>https://tokers.github.io/posts/the-internal-of-redis-transcation/</link>
+      <pubDate>Thu, 25 Apr 2019 16:43:18 +0800</pubDate>
+      
+      <guid>https://tokers.github.io/posts/the-internal-of-redis-transcation/</guid>
+      <description>
+
+&lt;p&gt;If you have the relational database background, you should be familiar with the transaction, execution of a transaction is atomic, which means either all the commands or none of them are performed.&lt;/p&gt;
+
+&lt;p&gt;Although Redis is well-known as a NO-SQL typed database, it really supports the transaction facility long before. Now I&amp;rsquo;d like to dissect the essence of Redis transaction in this post, the content is based on a relatively new redis version (actually on my own branch which has the newest commit &lt;code&gt;5e8cac3&lt;/code&gt;), so the description might diverge from your expectation slightly.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-behavior&#34;&gt;The behavior&lt;/h2&gt;
+
+&lt;p&gt;It&amp;rsquo;s not surprising that there are only four transaction-relevant commands. They are:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;MULTI&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;DISCARD&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;EXEC&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;WATCH&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The &lt;code&gt;MULTI&lt;/code&gt; command is a trigger, which marks the current client into the transaction state when this command was deliverd by your Redis instance. After &lt;code&gt;MULTI&lt;/code&gt; command is handled, all the subsequent commands will be queued rather than being executed immediately until the &lt;code&gt;DISCARD&lt;/code&gt; or &lt;code&gt;EXEC&lt;/code&gt; command is occurred.&lt;/p&gt;
+
+&lt;p&gt;The &lt;code&gt;DISCARD&lt;/code&gt; command, just respects its literal meaning, discards all the queued commands and cancels the client&amp;rsquo;s transaction state; The &lt;code&gt;EXEC&lt;/code&gt; command, just like the &lt;code&gt;COMMIT&lt;/code&gt; statement of SQL-based DBMS, notifies Redis to execute the transaction.&lt;/p&gt;
+
+&lt;p&gt;But what about some of your commands are invalid? Say you just sent a command to your Redis server, if there is a syntactic error in your command (e.g. wrong number of arguments), Redis can detect it before queueing it, and error reply will be returned and this command wouldn&amp;rsquo;t be queued. Futhermore, current transaction will be marked as &amp;ldquo;dirty&amp;rdquo;, after the &lt;code&gt;EXEC&lt;/code&gt; command arrived, Redis just replied &amp;ldquo;-EXECABORT Transaction discarded because of previous errors.&amp;rdquo;, and current client&amp;rsquo;s transaction state is also discarded. These kind of errors, we call it &amp;ldquo;programming faults&amp;rdquo;, because it&amp;rsquo;s visible in your development environment and can be rectified easily.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; MULTI
+OK
+127.0.0.1:6379&amp;gt; get a 1111
+(error) ERR wrong number of arguments for &#39;get&#39; command
+127.0.0.1:6379&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;On the other hand, some invisible &amp;ldquo;runtime error&amp;rdquo; might arise in one of your commands, but only reported after the command is really executed, in such a case, command will be queued normally, because this command is right, at least in the syntax regard. When this command is being executed, Redis will detect this type of error and reply the corresponding message. But, what about the state of transaction? Does it abort? No, actually it will be executed without a break, Redis doesn&amp;rsquo;t &amp;ldquo;rollback&amp;rdquo; the transaction on this occasion.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;127.0.0.1:6379&amp;gt; MULTI
+OK
+127.0.0.1:6379&amp;gt; INCR a
+QUEUED
+127.0.0.1:6379&amp;gt; HSET a b c
+QUEUED
+127.0.0.1:6379&amp;gt; EXEC
+1) (integer) 2
+2) (error) WRONGTYPE Operation against a key holding the wrong kind of value
+127.0.0.1:6379&amp;gt; get a
+&amp;quot;2&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So what the hell is the &lt;code&gt;WATCH&lt;/code&gt;. You may know the optimistic locking mechanism, the &lt;code&gt;WATCH&lt;/code&gt; command is really an implementation of optimistic locking, it allows you to monitor some keys, if any of them is changed before the transaction is executed, then the transaction would be aborted, and it&amp;rsquo;s clients&amp;rsquo; responsibility to re-trigger the transaction.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-internal&#34;&gt;The internal&lt;/h2&gt;
+
+&lt;p&gt;OK, so now we have digested the behavior of Redis transaction, it&amp;rsquo;s time to analysis its implementations!&lt;/p&gt;
+
+&lt;p&gt;The source code is written in &lt;code&gt;multi.c&lt;/code&gt; with hundreds of lines. Let&amp;rsquo;s start from the &lt;code&gt;MULTI&lt;/code&gt; command, the command processor, &lt;code&gt;multiCommand&lt;/code&gt;, just ORed the &lt;code&gt;c-&amp;gt;flags&lt;/code&gt; with &lt;code&gt;CLIENT_MULTI&lt;/code&gt;. In addition, you cannot pass &lt;code&gt;MULTI&lt;/code&gt; recursively, or you would get the error reply.&lt;/p&gt;
+
+&lt;p&gt;Now let&amp;rsquo;s focus on the behavior of function &lt;code&gt;processCommand&lt;/code&gt; after the client into the transaction state, this is a high wrapper for the command calling. Looking through this function we find the last paragraph is related with transaction.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-c&#34;&gt;if (c-&amp;gt;flags &amp;amp; CLIENT_MULTI &amp;amp;&amp;amp;
+    c-&amp;gt;cmd-&amp;gt;proc != execCommand &amp;amp;&amp;amp; c-&amp;gt;cmd-&amp;gt;proc != discardCommand &amp;amp;&amp;amp;
+    c-&amp;gt;cmd-&amp;gt;proc != multiCommand &amp;amp;&amp;amp; c-&amp;gt;cmd-&amp;gt;proc != watchCommand)
+{
+    queueMultiCommand(c);
+    addReplay(c,shared.queued);
+} else {
+    ...
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Conditions are concise, just check whether the client is in the transaction state and after excluding some transaction related commands, our command will be queued. So let&amp;rsquo;s summarize the &lt;code&gt;queueMultiCommand&lt;/code&gt; by the way, it appends the current command to the &lt;code&gt;c-&amp;gt;mstate&lt;/code&gt;, which holds all the commands and their flags so far.&lt;/p&gt;
+
+&lt;p&gt;Now it&amp;rsquo;s &lt;code&gt;DISCARD&lt;/code&gt;&amp;rsquo;s turn. The core part of &lt;code&gt;discardCommand&lt;/code&gt; is calling &lt;code&gt;discardTransaction&lt;/code&gt;, it frees all the queued commands and the relevant resouces, resets client&amp;rsquo;s transaction state and unwatches all the WATCHed keys (I will cover this in the later).&lt;/p&gt;
+
+&lt;p&gt;The most important command, &lt;code&gt;EXEC&lt;/code&gt;, is implemented as the &lt;code&gt;execCommand&lt;/code&gt; function, before really executing all the queued commands, this function checks the current transaction&amp;rsquo;s state, like whether this transaction is dirty (due to some previous errors), if so, transaction will be aborted, just like the &lt;code&gt;DISCARD&lt;/code&gt; command&amp;rsquo;s behavior. Moreover, don&amp;rsquo;t forget the replication feature, if a transaction with some write operations is delivered in a Redis replica/slave instance, and the &lt;code&gt;replica-read-only&lt;/code&gt; option is enabled, transaction will be discarded too. Only all the checks passed, could the commands be run, in the meanwhile, commands will be propagated into the append only file buffer and all the replicas (with the prologue command &lt;code&gt;MULTI&lt;/code&gt; and epologue command &lt;code&gt;EXEC&lt;/code&gt;).&lt;/p&gt;
+
+&lt;p&gt;Wait a minute, it seems that we neglect the &lt;code&gt;WATCH&lt;/code&gt; command, right? The &lt;code&gt;WATCH&lt;/code&gt; command handler &lt;code&gt;watchCommand&lt;/code&gt;, is also simple enough, it builds the mapping between the target keys and the concerned clients (list) in &lt;code&gt;c-&amp;gt;db-&amp;gt;watched_keys&lt;/code&gt;. Once one of keys is modified, the corresponding client list will be iterated and each of them will be marked with the flag &lt;code&gt;CLIENT_DIRTY_CAS&lt;/code&gt;, which means this transaction now is dirty, and should be aborted while executing, this logic is boxed into the function &lt;code&gt;touchWatchedKey&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-c&#34;&gt;void touchWatchedKey(redisDb *db, robj *key) {
+    list *clients;
+    listIter li;
+    listNode *ln;
+
+    if (dictSize(db-&amp;gt;watched_keys) == 0) return;
+    clients = dictFetchValue(db-&amp;gt;watched_keys, key);
+    if (!clients) return;
+
+    listRewind(clients, &amp;amp;li);
+    while ((ln = listNext(&amp;amp;li))) {
+        client *c = listNodeValue(ln);
+
+        c-&amp;gt;flags |= CLIENT_DIRTY_CAS;
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So this is the basic descriptions of Redis transaction, it&amp;rsquo;s atomic, simple, but doesn&amp;rsquo;t support rollback. Using it properly may help us but frankly I even don&amp;rsquo;t have a chance to use it in the production environment&amp;hellip; because the Lua script is preferable by constrast.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>How is the message delivered in NSQD?</title>
@@ -255,6 +357,15 @@ details, you can just read the README.&lt;/p&gt;
 &lt;li&gt;Hmmm, I will replenish this list in the future. :)&lt;/li&gt;
 &lt;/ul&gt;
 </description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</guid>
+      <description></description>
     </item>
     
   </channel>

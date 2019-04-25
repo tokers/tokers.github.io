@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>The Internal of Redis Transaction</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="The Internal of Redis Transaction">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="The Internal of Redis Transaction">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://tokers.github.io/posts/the-internal-of-redis-transcation/">
+	<meta name="og:site_name" content="The Internal of Redis Transaction">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:tag" content="">
+	<link rel="stylesheet" type="text/css" href="https://tokers.github.io/css/style.css">
+	
+	
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+	ga('create', 'UA-123-45', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+<script async src='https://www.google-analytics.com/analytics.js'></script>
+
+	
+	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+	<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+
+<body>
+
+<header>
+	
+	<a href="https://tokers.github.io/" style="float: left;color:#777;"><strong>This is Alex Zhang</strong></a>
+	
+	&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://tokers.github.io/about/" style="color:#777;"><strong>About Me</strong></a>
+	
+	
+	
+	<a href="https://tokers.github.io/index.xml" style="color:#777;float: right;"><strong><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></strong></a>
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+      el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+  <h1>The Internal of Redis Transaction <aside></aside></h1>
+  
+
+<p>If you have the relational database background, you should be familiar with the transaction, execution of a transaction is atomic, which means either all the commands or none of them are performed.</p>
+
+<p>Although Redis is well-known as a NO-SQL typed database, it really supports the transaction facility long before. Now I&rsquo;d like to dissect the essence of Redis transaction in this post, the content is based on a relatively new redis version (actually on my own branch which has the newest commit <code>5e8cac3</code>), so the description might diverge from your expectation slightly.</p>
+
+<h2 id="the-behavior">The behavior</h2>
+
+<p>It&rsquo;s not surprising that there are only four transaction-relevant commands. They are:</p>
+
+<ul>
+<li><code>MULTI</code></li>
+<li><code>DISCARD</code></li>
+<li><code>EXEC</code></li>
+<li><code>WATCH</code></li>
+</ul>
+
+<p>The <code>MULTI</code> command is a trigger, which marks the current client into the transaction state when this command was deliverd by your Redis instance. After <code>MULTI</code> command is handled, all the subsequent commands will be queued rather than being executed immediately until the <code>DISCARD</code> or <code>EXEC</code> command is occurred.</p>
+
+<p>The <code>DISCARD</code> command, just respects its literal meaning, discards all the queued commands and cancels the client&rsquo;s transaction state; The <code>EXEC</code> command, just like the <code>COMMIT</code> statement of SQL-based DBMS, notifies Redis to execute the transaction.</p>
+
+<p>But what about some of your commands are invalid? Say you just sent a command to your Redis server, if there is a syntactic error in your command (e.g. wrong number of arguments), Redis can detect it before queueing it, and error reply will be returned and this command wouldn&rsquo;t be queued. Futhermore, current transaction will be marked as &ldquo;dirty&rdquo;, after the <code>EXEC</code> command arrived, Redis just replied &ldquo;-EXECABORT Transaction discarded because of previous errors.&rdquo;, and current client&rsquo;s transaction state is also discarded. These kind of errors, we call it &ldquo;programming faults&rdquo;, because it&rsquo;s visible in your development environment and can be rectified easily.</p>
+
+<pre><code>127.0.0.1:6379&gt; MULTI
+OK
+127.0.0.1:6379&gt; get a 1111
+(error) ERR wrong number of arguments for 'get' command
+127.0.0.1:6379&gt;
+</code></pre>
+
+<p>On the other hand, some invisible &ldquo;runtime error&rdquo; might arise in one of your commands, but only reported after the command is really executed, in such a case, command will be queued normally, because this command is right, at least in the syntax regard. When this command is being executed, Redis will detect this type of error and reply the corresponding message. But, what about the state of transaction? Does it abort? No, actually it will be executed without a break, Redis doesn&rsquo;t &ldquo;rollback&rdquo; the transaction on this occasion.</p>
+
+<pre><code>127.0.0.1:6379&gt; MULTI
+OK
+127.0.0.1:6379&gt; INCR a
+QUEUED
+127.0.0.1:6379&gt; HSET a b c
+QUEUED
+127.0.0.1:6379&gt; EXEC
+1) (integer) 2
+2) (error) WRONGTYPE Operation against a key holding the wrong kind of value
+127.0.0.1:6379&gt; get a
+&quot;2&quot;
+</code></pre>
+
+<p>So what the hell is the <code>WATCH</code>. You may know the optimistic locking mechanism, the <code>WATCH</code> command is really an implementation of optimistic locking, it allows you to monitor some keys, if any of them is changed before the transaction is executed, then the transaction would be aborted, and it&rsquo;s clients&rsquo; responsibility to re-trigger the transaction.</p>
+
+<h2 id="the-internal">The internal</h2>
+
+<p>OK, so now we have digested the behavior of Redis transaction, it&rsquo;s time to analysis its implementations!</p>
+
+<p>The source code is written in <code>multi.c</code> with hundreds of lines. Let&rsquo;s start from the <code>MULTI</code> command, the command processor, <code>multiCommand</code>, just ORed the <code>c-&gt;flags</code> with <code>CLIENT_MULTI</code>. In addition, you cannot pass <code>MULTI</code> recursively, or you would get the error reply.</p>
+
+<p>Now let&rsquo;s focus on the behavior of function <code>processCommand</code> after the client into the transaction state, this is a high wrapper for the command calling. Looking through this function we find the last paragraph is related with transaction.</p>
+
+<pre><code class="language-c">if (c-&gt;flags &amp; CLIENT_MULTI &amp;&amp;
+    c-&gt;cmd-&gt;proc != execCommand &amp;&amp; c-&gt;cmd-&gt;proc != discardCommand &amp;&amp;
+    c-&gt;cmd-&gt;proc != multiCommand &amp;&amp; c-&gt;cmd-&gt;proc != watchCommand)
+{
+    queueMultiCommand(c);
+    addReplay(c,shared.queued);
+} else {
+    ...
+}
+</code></pre>
+
+<p>Conditions are concise, just check whether the client is in the transaction state and after excluding some transaction related commands, our command will be queued. So let&rsquo;s summarize the <code>queueMultiCommand</code> by the way, it appends the current command to the <code>c-&gt;mstate</code>, which holds all the commands and their flags so far.</p>
+
+<p>Now it&rsquo;s <code>DISCARD</code>&rsquo;s turn. The core part of <code>discardCommand</code> is calling <code>discardTransaction</code>, it frees all the queued commands and the relevant resouces, resets client&rsquo;s transaction state and unwatches all the WATCHed keys (I will cover this in the later).</p>
+
+<p>The most important command, <code>EXEC</code>, is implemented as the <code>execCommand</code> function, before really executing all the queued commands, this function checks the current transaction&rsquo;s state, like whether this transaction is dirty (due to some previous errors), if so, transaction will be aborted, just like the <code>DISCARD</code> command&rsquo;s behavior. Moreover, don&rsquo;t forget the replication feature, if a transaction with some write operations is delivered in a Redis replica/slave instance, and the <code>replica-read-only</code> option is enabled, transaction will be discarded too. Only all the checks passed, could the commands be run, in the meanwhile, commands will be propagated into the append only file buffer and all the replicas (with the prologue command <code>MULTI</code> and epologue command <code>EXEC</code>).</p>
+
+<p>Wait a minute, it seems that we neglect the <code>WATCH</code> command, right? The <code>WATCH</code> command handler <code>watchCommand</code>, is also simple enough, it builds the mapping between the target keys and the concerned clients (list) in <code>c-&gt;db-&gt;watched_keys</code>. Once one of keys is modified, the corresponding client list will be iterated and each of them will be marked with the flag <code>CLIENT_DIRTY_CAS</code>, which means this transaction now is dirty, and should be aborted while executing, this logic is boxed into the function <code>touchWatchedKey</code>.</p>
+
+<pre><code class="language-c">void touchWatchedKey(redisDb *db, robj *key) {
+    list *clients;
+    listIter li;
+    listNode *ln;
+
+    if (dictSize(db-&gt;watched_keys) == 0) return;
+    clients = dictFetchValue(db-&gt;watched_keys, key);
+    if (!clients) return;
+
+    listRewind(clients, &amp;li);
+    while ((ln = listNext(&amp;li))) {
+        client *c = listNodeValue(ln);
+
+        c-&gt;flags |= CLIENT_DIRTY_CAS;
+    }
+}
+</code></pre>
+
+<p>So this is the basic descriptions of Redis transaction, it&rsquo;s atomic, simple, but doesn&rsquo;t support rollback. Using it properly may help us but frankly I even don&rsquo;t have a chance to use it in the production environment&hellip; because the Lua script is preferable by constrast.</p>
+
+</div>
+
+
+
+
+<footer>
+	<p>© 2017-2018, all rights reserved.</a>
+</footer>
+</body>
+</html>
+
+
+<div id="git-comments"></div>
+<link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+<script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+<script>
+  var gitment = new Gitment({
+    id: '',
+    owner: 'tokers',
+    repo: 'comments-of-my-blog',
+    oauth: {
+      client_id: '3776dbfa00cb350d0820',
+      client_secret: '0927748e810e6ee8a976c618f3fb51dd287d575a',
+    }
+  })
+  gitment.render('git-comments')
+</script>
+
