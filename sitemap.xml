@@ -8,6 +8,18 @@
   </url>
   
   <url>
+    <loc>https://tokers.github.io/posts/</loc>
+    <lastmod>2019-05-27T11:47:45+08:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>https://tokers.github.io/</loc>
+    <lastmod>2019-05-27T11:47:45+08:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>https://tokers.github.io/posts/the-internal-of-redis-transcation/</loc>
     <lastmod>2019-04-25T16:43:18+08:00</lastmod>
   </url>
@@ -34,10 +46,12 @@
   
   <url>
     <loc>https://tokers.github.io/posts/redis-replication-handshake-flow/</loc>
+    <priority>0</priority>
   </url>
   
   <url>
     <loc>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</loc>
+    <priority>0</priority>
   </url>
   
   <url>
@@ -46,19 +60,7 @@
   </url>
   
   <url>
-    <loc>https://tokers.github.io/posts/</loc>
-    <lastmod>2019-05-27T11:47:45+08:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
     <loc>https://tokers.github.io/tags/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://tokers.github.io/</loc>
-    <lastmod>2019-05-27T11:47:45+08:00</lastmod>
     <priority>0</priority>
   </url>
   
