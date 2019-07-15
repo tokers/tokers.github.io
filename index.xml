@@ -428,26 +428,5 @@ details, you can just read the README.&lt;/p&gt;
 </description>
     </item>
     
-    <item>
-      <title></title>
-      <link>https://tokers.github.io/posts/redis-replication-handshake-flow/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>https://tokers.github.io/posts/redis-replication-handshake-flow/</guid>
-      <description>&lt;p&gt;Replication is an essential part for the high availability. Redis has its replication implemenation so long before. The master instance sends its changes (wrapping commands with the RESP protocol) to all replicas from time to time.&lt;/p&gt;
-
-&lt;p&gt;Before transferring data between the master and replica, both sides need to do the handshake, which is activated by the replica.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title></title>
-      <link>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</guid>
-      <description></description>
-    </item>
-    
   </channel>
 </rss>

@@ -45,16 +45,6 @@
   </url>
   
   <url>
-    <loc>https://tokers.github.io/posts/redis-replication-handshake-flow/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://tokers.github.io/posts/the-cooperation-between-nsqlookupd-and-nsqd/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
     <loc>https://tokers.github.io/categories/</loc>
     <priority>0</priority>
   </url>
